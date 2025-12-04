@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 3001;
+const db = require("./db");
 
 app.use(cors());
 
@@ -24,4 +25,21 @@ app.get("/", (req, res) => {
 
 app.listen(port, () => {
   console.log(`🚀 Servidor backend rodando na porta ${port}`);
+});
+
+//Teste render
+app.get("/test-db", async (req, res) => {
+  try {
+    const result = await db.query("SELECT NOW()");
+    res.json({
+      mensagem: "✅ Conexão bem sucedida!",
+      hora_no_banco: result.rows[0].now,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      mensagem: "❌ Erro ao conectar no banco",
+      erro: error.message,
+    });
+  }
 });
