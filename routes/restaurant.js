@@ -16,7 +16,6 @@ router.get("/all", (req, res) => {
   });
 });
 
-// Buscar pedidos de um restaurante específico
 router.get("/:restaurantId/orders", (req, res) => {
   const { restaurantId } = req.params;
   const sql = `
