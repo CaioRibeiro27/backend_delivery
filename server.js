@@ -14,6 +14,13 @@ const userRoutes = require("./routes/user");
 const restaurantRoutes = require("./routes/restaurant");
 const orderRoutes = require("./routes/orders");
 
+app.use((req, res, next) => {
+  console.log(`📥 Recebi uma requisição ${req.method} em ${req.url}`);
+  console.log("📝 Headers:", req.headers["content-type"]);
+  console.log("📦 Body:", req.body);
+  next();
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/restaurant", restaurantRoutes);
