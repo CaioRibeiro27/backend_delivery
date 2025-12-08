@@ -104,8 +104,6 @@ router.post("/register-restaurant", async (req, res) => {
 //Login restaurante e usuario
 router.post("/login", (req, res) => {
   const { email, password } = req.body;
-
-  // Buscar usuario
   const sqlUser = "SELECT * FROM usuario WHERE email = $1";
 
   db.query(sqlUser, [email], async (err, resultsUser) => {
@@ -113,20 +111,21 @@ router.post("/login", (req, res) => {
       console.error("Erro login user:", err);
       return res
         .status(500)
-        .json({ success: false, message: "Erro no servidor." });
+        .json({ success: false, message: "Erro interno no servidor." });
     }
 
     if (resultsUser.rows.length > 0) {
       const user = resultsUser.rows[0];
 
+      // Verifica se é conta Google (sem senha)
       if (user.senha === null) {
         return res.status(400).json({
           success: false,
-          message:
-            "Esta conta foi criada com o Google. Por favor, entre clicando no botão do Google.",
+          message: "Esta conta usa login social. Clique no botão do Google.",
         });
       }
 
+      // Verifica a senha
       const isMatch = await bcrypt.compare(password, user.senha);
 
       if (isMatch) {
@@ -137,9 +136,10 @@ router.post("/login", (req, res) => {
           user: { id: user.id_usuario, nome: user.nome, email: user.email },
         });
       } else {
+        // Senha errada
         return res
           .status(401)
-          .json({ success: false, message: "Email ou senha inválidos." });
+          .json({ success: false, message: "Senha incorreta." });
       }
     }
 
@@ -147,10 +147,12 @@ router.post("/login", (req, res) => {
 
     db.query(sqlRest, [email], async (errRest, resultsRest) => {
       if (errRest) {
+        console.error("Erro login rest:", errRest);
         return res
           .status(500)
-          .json({ success: false, message: "Erro no servidor." });
+          .json({ success: false, message: "Erro interno no servidor." });
       }
+
       if (resultsRest.rows.length > 0) {
         const rest = resultsRest.rows[0];
         const isMatch = await bcrypt.compare(password, rest.senha);
@@ -166,12 +168,16 @@ router.post("/login", (req, res) => {
               email: rest.email,
             },
           });
+        } else {
+          return res
+            .status(401)
+            .json({ success: false, message: "Senha incorreta." });
         }
       }
 
       return res
         .status(401)
-        .json({ success: false, message: "Email ou senha inválidos." });
+        .json({ success: false, message: "Email não cadastrado." });
     });
   });
 });
