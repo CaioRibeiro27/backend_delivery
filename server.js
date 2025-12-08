@@ -14,6 +14,9 @@ const userRoutes = require("./routes/user");
 const restaurantRoutes = require("./routes/restaurant");
 const orderRoutes = require("./routes/orders");
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use((req, res, next) => {
   console.log(`📥 Recebi uma requisição ${req.method} em ${req.url}`);
   console.log("📝 Headers:", req.headers["content-type"]);
