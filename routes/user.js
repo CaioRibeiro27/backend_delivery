@@ -3,20 +3,22 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const db = require("../db");
 
-// Perfil
+// Perfil usuario
 router.get("/users/:userId", (req, res) => {
   const { userId } = req.params;
   const sql =
-    "SELECT id_usuario, nome, email, telefone FROM usuario WHERE id_usuario = ?";
+    "SELECT id_usuario, nome, email, telefone FROM usuario WHERE id_usuario = $1";
 
   db.query(sql, [userId], (err, results) => {
     if (err) return res.status(500).json({ success: false });
-    if (results.length === 0) return res.status(404).json({ success: false });
-    res.status(200).json({ success: true, user: results[0] });
+    if (results.rows.length === 0)
+      return res.status(404).json({ success: false });
+
+    res.status(200).json({ success: true, user: results.rows[0] });
   });
 });
 
-// Atualizar perfil (telefone e senha)
+// Atualizar perfil telefone e senha
 router.put("/users/:userId", async (req, res) => {
   const { userId } = req.params;
   const { telefone, email, novaSenha, senhaAtual } = req.body;
@@ -27,16 +29,16 @@ router.put("/users/:userId", async (req, res) => {
         .status(400)
         .json({ success: false, message: "Senha atual é obrigatória." });
     }
-    const sqlCheck = "SELECT senha FROM usuario WHERE id_usuario = ?";
+    const sqlCheck = "SELECT senha FROM usuario WHERE id_usuario = $1";
 
     db.query(sqlCheck, [userId], async (errCheck, resultsCheck) => {
-      if (errCheck || resultsCheck.length === 0) {
+      if (errCheck || resultsCheck.rows.length === 0) {
         return res
           .status(500)
           .json({ success: false, message: "Erro ao verificar usuário." });
       }
 
-      const currentHash = resultsCheck[0].senha;
+      const currentHash = resultsCheck.rows[0].senha;
 
       if (!currentHash) {
         return res.status(400).json({
@@ -54,7 +56,7 @@ router.put("/users/:userId", async (req, res) => {
       }
 
       const newHashedPassword = await bcrypt.hash(novaSenha, 10);
-      const sqlUpdate = "UPDATE usuario SET senha = ? WHERE id_usuario = ?";
+      const sqlUpdate = "UPDATE usuario SET senha = $1 WHERE id_usuario = $2";
 
       db.query(sqlUpdate, [newHashedPassword, userId], (errUp) => {
         if (errUp)
@@ -75,7 +77,7 @@ router.put("/users/:userId", async (req, res) => {
   let params = [];
 
   if (telefone) {
-    sql = "UPDATE usuario SET telefone = ? WHERE id_usuario = ?";
+    sql = "UPDATE usuario SET telefone = $1 WHERE id_usuario = $2";
     params = [telefone, userId];
   } else {
     return res
@@ -98,7 +100,7 @@ router.put("/users/:userId", async (req, res) => {
 
 router.delete("/users/:userId", (req, res) => {
   const { userId } = req.params;
-  const sql = "DELETE FROM usuario WHERE id_usuario = ?";
+  const sql = "DELETE FROM usuario WHERE id_usuario = $1";
 
   db.query(sql, [userId], (err, result) => {
     if (err)
@@ -111,15 +113,14 @@ router.delete("/users/:userId", (req, res) => {
   });
 });
 
-// --- ENDEREÇOS ---
-// Buscar endereços do usuário
+// Endereços
 router.get("/addresses/:userId", (req, res) => {
   const { userId } = req.params;
   const sql = `
     SELECT e.id_endereco, e.rua, e.numero, e.cep, e.cidade, e.bairro, ue.localizacao 
     FROM endereco e
     JOIN usuario_endereco ue ON e.id_endereco = ue.id_endereco
-    WHERE ue.id_usuario = ?
+    WHERE ue.id_usuario = $1
   `;
 
   db.query(sql, [userId], (err, results) => {
@@ -127,7 +128,7 @@ router.get("/addresses/:userId", (req, res) => {
       return res
         .status(500)
         .json({ success: false, message: "Erro ao buscar endereços." });
-    res.status(200).json({ success: true, addresses: results });
+    res.status(200).json({ success: true, addresses: results.rows });
   });
 });
 
@@ -138,7 +139,7 @@ router.post("/addresses", (req, res) => {
 
   // Inserir Endereço
   const sqlAddress =
-    "INSERT INTO endereco (rua, numero, cep, cidade, bairro) VALUES (?, ?, ?, ?, ?)";
+    "INSERT INTO endereco (rua, numero, cep, cidade, bairro) VALUES ($1, $2, $3, $4, $5) RETURNING id_endereco";
 
   db.query(sqlAddress, [rua, numero, cep, cidade, bairro], (err, result) => {
     if (err) {
@@ -149,11 +150,11 @@ router.post("/addresses", (req, res) => {
       });
     }
 
-    const id_endereco = result.insertId;
+    const id_endereco = result.rows[0].id_endereco;
 
     // Vincular ao Usuário
     const sqlLink =
-      "INSERT INTO usuario_endereco (id_usuario, id_endereco, localizacao) VALUES (?, ?, ?)";
+      "INSERT INTO usuario_endereco (id_usuario, id_endereco, localizacao) VALUES ($1, $2, $3)";
 
     db.query(
       sqlLink,
@@ -173,7 +174,7 @@ router.post("/addresses", (req, res) => {
   });
 });
 
-//Atualizar endereço
+// Atualizar endereço
 router.put("/addresses/:addressId", (req, res) => {
   const { addressId } = req.params;
   const { rua, numero, cep, cidade, bairro, localizacao, id_usuario } =
@@ -181,7 +182,7 @@ router.put("/addresses/:addressId", (req, res) => {
 
   // Atualiza tabela endereco
   const sqlAddress =
-    "UPDATE endereco SET rua=?, numero=?, cep=?, cidade=?, bairro=? WHERE id_endereco=?";
+    "UPDATE endereco SET rua=$1, numero=$2, cep=$3, cidade=$4, bairro=$5 WHERE id_endereco=$6";
 
   db.query(sqlAddress, [rua, numero, cep, cidade, bairro, addressId], (err) => {
     if (err)
@@ -191,7 +192,7 @@ router.put("/addresses/:addressId", (req, res) => {
 
     // Atualiza tabela de vinculo
     const sqlLink =
-      "UPDATE usuario_endereco SET localizacao=? WHERE id_endereco=? AND id_usuario=?";
+      "UPDATE usuario_endereco SET localizacao=$1 WHERE id_endereco=$2 AND id_usuario=$3";
     db.query(sqlLink, [localizacao, addressId, id_usuario], (errLink) => {
       if (errLink) return res.status(500).json({ success: false });
       res.status(200).json({ success: true, message: "Endereço atualizado!" });
@@ -199,12 +200,12 @@ router.put("/addresses/:addressId", (req, res) => {
   });
 });
 
-//Deletar endereço
+// Deletar endereço
 router.delete("/addresses/:addressId", (req, res) => {
   const { addressId } = req.params;
 
   // Deletar Vínculo
-  const sqlLink = "DELETE FROM usuario_endereco WHERE id_endereco = ?";
+  const sqlLink = "DELETE FROM usuario_endereco WHERE id_endereco = $1";
 
   db.query(sqlLink, [addressId], (err, result) => {
     if (err) {
@@ -215,7 +216,7 @@ router.delete("/addresses/:addressId", (req, res) => {
     }
 
     // Deletar Endereço Físico
-    const sqlAddress = "DELETE FROM endereco WHERE id_endereco = ?";
+    const sqlAddress = "DELETE FROM endereco WHERE id_endereco = $1";
 
     db.query(sqlAddress, [addressId], (errAddress, resultAddress) => {
       if (errAddress) {
@@ -233,12 +234,11 @@ router.delete("/addresses/:addressId", (req, res) => {
   });
 });
 
-// --- CARTÕES ---
-//Buscar cartão
+// Cartões
 router.get("/cards/:userId", (req, res) => {
   const { userId } = req.params;
   const sql =
-    "SELECT id_cartao, numero_cartao, bandeira, nome_titular, data_vencimento FROM cartao WHERE id_usuario = ?";
+    "SELECT id_cartao, numero_cartao, bandeira, nome_titular, data_vencimento FROM cartao WHERE id_usuario = $1";
 
   db.query(sql, [userId], (err, results) => {
     if (err) {
@@ -247,7 +247,7 @@ router.get("/cards/:userId", (req, res) => {
         .status(500)
         .json({ success: false, message: "Erro no servidor." });
     }
-    res.status(200).json({ success: true, cards: results });
+    res.status(200).json({ success: true, cards: results.rows });
   });
 });
 
@@ -255,14 +255,14 @@ router.post("/cards", (req, res) => {
   const { numero_cartao, bandeira, nome_titular, data_vencimento, id_usuario } =
     req.body;
   const sql =
-    "INSERT INTO cartao (numero_cartao, bandeira, nome_titular, data_vencimento, id_usuario) VALUES (?, ?, ?, ?, ?)";
+    "INSERT INTO cartao (numero_cartao, bandeira, nome_titular, data_vencimento, id_usuario) VALUES ($1, $2, $3, $4, $5) RETURNING id_cartao";
 
   db.query(
     sql,
     [numero_cartao, bandeira, nome_titular, data_vencimento, id_usuario],
     (err, result) => {
       if (err) {
-        if (err.code === "ER_DUP_ENTRY") {
+        if (err.code === "23505") {
           return res.status(400).json({
             success: false,
             message: "Este número de cartão já está cadastrado.",
@@ -273,10 +273,11 @@ router.post("/cards", (req, res) => {
           .status(500)
           .json({ success: false, message: "Erro ao salvar cartão." });
       }
+
       res.status(201).json({
         success: true,
         message: "Cartão adicionado!",
-        cardId: result.insertId,
+        cardId: result.rows[0].id_cartao,
       });
     }
   );
@@ -287,7 +288,7 @@ router.put("/cards/:cardId", (req, res) => {
   const { cardId } = req.params;
   const { nome_titular, data_vencimento } = req.body;
   const sql =
-    "UPDATE cartao SET nome_titular = ?, data_vencimento = ? WHERE id_cartao = ?";
+    "UPDATE cartao SET nome_titular = $1, data_vencimento = $2 WHERE id_cartao = $3";
 
   db.query(sql, [nome_titular, data_vencimento, cardId], (err, result) => {
     if (err) {
@@ -296,7 +297,7 @@ router.put("/cards/:cardId", (req, res) => {
         .status(500)
         .json({ success: false, message: "Erro ao atualizar cartão." });
     }
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res
         .status(404)
         .json({ success: false, message: "Cartão não encontrado." });
@@ -309,7 +310,7 @@ router.put("/cards/:cardId", (req, res) => {
 
 router.delete("/cards/:cardId", (req, res) => {
   const { cardId } = req.params;
-  const sql = "DELETE FROM cartao WHERE id_cartao = ?";
+  const sql = "DELETE FROM cartao WHERE id_cartao = $1";
 
   db.query(sql, [cardId], (err, result) => {
     if (err) {
@@ -318,7 +319,7 @@ router.delete("/cards/:cardId", (req, res) => {
         .status(500)
         .json({ success: false, message: "Erro ao deletar cartão." });
     }
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res
         .status(404)
         .json({ success: false, message: "Cartão não encontrado." });
@@ -329,14 +330,14 @@ router.delete("/cards/:cardId", (req, res) => {
   });
 });
 
-//Buscar pedido
+// Pedidos e historico
 router.get("/:userId/active-order", (req, res) => {
   const { userId } = req.params;
   const sql = `
     SELECT p.id_pedido, p.statusPedido, r.nome as nome_restaurante
     FROM pedido p
     JOIN restaurante r ON p.id_restaurante = r.id_restaurante
-    WHERE p.id_usuario = ? 
+    WHERE p.id_usuario = $1 
     AND p.statusPedido NOT IN ('Entregue', 'Cancelado')
     ORDER BY p.data_pedido DESC
     LIMIT 1
@@ -345,32 +346,30 @@ router.get("/:userId/active-order", (req, res) => {
   db.query(sql, [userId], (err, results) => {
     if (err) return res.status(500).json({ success: false });
 
-    if (results.length > 0) {
-      const order = results[0];
+    if (results.rows.length > 0) {
+      const order = results.rows[0];
 
       // Buscar itens do pedido
       const sqlItems = `
         SELECT pi.quantidade, c.nome_produto 
         FROM pedido_itens pi
         JOIN cardapio c ON pi.id_cardapio = c.id_cardapio
-        WHERE pi.id_pedido = ?
+        WHERE pi.id_pedido = $1
       `;
 
       db.query(sqlItems, [order.id_pedido], (errItems, items) => {
         if (errItems) return res.status(500).json({ success: false });
         res.status(200).json({
           success: true,
-          activeOrder: { ...order, items: items },
+          activeOrder: { ...order, items: items.rows },
         });
       });
     } else {
-      // Nenhum pedido ativo encontrado
       res.status(200).json({ success: true, activeOrder: null });
     }
   });
 });
 
-//Rota historico
 router.get("/:userId/orders", (req, res) => {
   const { userId } = req.params;
 
@@ -378,7 +377,7 @@ router.get("/:userId/orders", (req, res) => {
     SELECT p.id_pedido, p.data_pedido, p.valor_total, p.statusPedido, r.nome as nome_restaurante
     FROM pedido p
     JOIN restaurante r ON p.id_restaurante = r.id_restaurante
-    WHERE p.id_usuario = ?
+    WHERE p.id_usuario = $1
     ORDER BY p.data_pedido DESC
   `;
 
@@ -389,7 +388,7 @@ router.get("/:userId/orders", (req, res) => {
         .status(500)
         .json({ success: false, message: "Erro ao buscar histórico." });
     }
-    res.status(200).json({ success: true, orders: results });
+    res.status(200).json({ success: true, orders: results.rows });
   });
 });
 
