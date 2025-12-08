@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const db = require("../db");
 const axios = require("axios");
 
-//Registra usuario
+// Registrar usuario
 router.post("/register", async (req, res) => {
   const { nome, telefone, senha, email } = req.body;
   const hashedPassword = await bcrypt.hash(senha, 10);
@@ -37,7 +37,7 @@ router.post("/register", async (req, res) => {
   });
 });
 
-//Registrar restaurante
+// Registrar restaurante
 router.post("/register-restaurant", async (req, res) => {
   const {
     nome,
@@ -69,10 +69,8 @@ router.post("/register-restaurant", async (req, res) => {
           .json({ success: false, message: "Erro ao salvar endereço." });
       }
 
-      // Pegar ID do endereco recém criado
       const id_endereco = resultAddr.rows[0].id_endereco;
 
-      // Inserir restaurante
       const sqlRest =
         "INSERT INTO restaurante (nome, telefone, cnpj, id_endereco, email, senha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id_restaurante";
 
@@ -101,9 +99,11 @@ router.post("/register-restaurant", async (req, res) => {
   );
 });
 
-//Login restaurante e usuario
+// Login(restaurante e usuario)
 router.post("/login", (req, res) => {
   const { email, password } = req.body;
+
+  // Buscar usuario
   const sqlUser = "SELECT * FROM usuario WHERE email = $1";
 
   db.query(sqlUser, [email], async (err, resultsUser) => {
@@ -111,21 +111,20 @@ router.post("/login", (req, res) => {
       console.error("Erro login user:", err);
       return res
         .status(500)
-        .json({ success: false, message: "Erro interno no servidor." });
+        .json({ success: false, message: "Erro no servidor." });
     }
 
     if (resultsUser.rows.length > 0) {
       const user = resultsUser.rows[0];
 
-      // Verifica se é conta Google (sem senha)
       if (user.senha === null) {
         return res.status(400).json({
           success: false,
-          message: "Esta conta usa login social. Clique no botão do Google.",
+          message:
+            "Esta conta foi criada com o Google. Por favor, entre clicando no botão do Google.",
         });
       }
 
-      // Verifica a senha
       const isMatch = await bcrypt.compare(password, user.senha);
 
       if (isMatch) {
@@ -136,10 +135,9 @@ router.post("/login", (req, res) => {
           user: { id: user.id_usuario, nome: user.nome, email: user.email },
         });
       } else {
-        // Senha errada
         return res
           .status(401)
-          .json({ success: false, message: "Senha incorreta." });
+          .json({ success: false, message: "Email ou senha inválidos." });
       }
     }
 
@@ -147,12 +145,10 @@ router.post("/login", (req, res) => {
 
     db.query(sqlRest, [email], async (errRest, resultsRest) => {
       if (errRest) {
-        console.error("Erro login rest:", errRest);
         return res
           .status(500)
-          .json({ success: false, message: "Erro interno no servidor." });
+          .json({ success: false, message: "Erro no servidor." });
       }
-
       if (resultsRest.rows.length > 0) {
         const rest = resultsRest.rows[0];
         const isMatch = await bcrypt.compare(password, rest.senha);
@@ -168,16 +164,12 @@ router.post("/login", (req, res) => {
               email: rest.email,
             },
           });
-        } else {
-          return res
-            .status(401)
-            .json({ success: false, message: "Senha incorreta." });
         }
       }
 
       return res
         .status(401)
-        .json({ success: false, message: "Email não cadastrado." });
+        .json({ success: false, message: "Email ou senha inválidos." });
     });
   });
 });
