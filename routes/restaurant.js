@@ -16,32 +16,53 @@ router.get("/all", (req, res) => {
   });
 });
 
-router.get("/:restaurantId/orders", (req, res) => {
+// Buscar pedidos
+router.get("/:restaurantId/orders", async (req, res) => {
   const { restaurantId } = req.params;
-  const sql = `
+  const sqlOrders = `
     SELECT 
       p.id_pedido, 
       p.valor_total, 
-      p.statusPedido, 
+      p.statusPedido AS "statusPedido", 
       p.data_pedido,
       u.nome as nome_cliente,
-      e.rua, e.numero, e.bairro, ue.localizacao -- Dados precisos do endereço escolhido
+      e.rua, e.numero, e.bairro, ue.localizacao
     FROM pedido p
     JOIN usuario u ON p.id_usuario = u.id_usuario
-    JOIN endereco e ON p.id_endereco = e.id_endereco -- JOIN direto com o endereço do pedido
-    LEFT JOIN usuario_endereco ue ON (ue.id_endereco = e.id_endereco AND ue.id_usuario = u.id_usuario) -- Só pra pegar o apelido
+    JOIN endereco e ON p.id_endereco = e.id_endereco
+    LEFT JOIN usuario_endereco ue ON (ue.id_endereco = e.id_endereco AND ue.id_usuario = u.id_usuario)
     WHERE p.id_restaurante = $1
     ORDER BY p.data_pedido DESC`;
 
-  db.query(sql, [restaurantId], (err, results) => {
-    if (err) {
-      console.error(err);
-      return res
-        .status(500)
-        .json({ success: false, message: "Erro ao buscar pedidos." });
+  try {
+    const ordersResult = await db.query(sqlOrders, [restaurantId]);
+    const orders = ordersResult.rows;
+
+    if (orders.length === 0) {
+      return res.status(200).json({ success: true, orders: [] });
     }
-    res.status(200).json({ success: true, orders: results.rows });
-  });
+
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => {
+        const sqlItems = `
+        SELECT pi.quantidade, c.nome_produto, pi.preco_unitario 
+        FROM pedido_itens pi
+        JOIN cardapio c ON pi.id_cardapio = c.id_cardapio
+        WHERE pi.id_pedido = $1
+      `;
+        const itemsResult = await db.query(sqlItems, [order.id_pedido]);
+
+        return { ...order, items: itemsResult.rows };
+      })
+    );
+
+    res.status(200).json({ success: true, orders: ordersWithItems });
+  } catch (err) {
+    console.error("Erro ao buscar pedidos:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Erro ao buscar pedidos." });
+  }
 });
 
 // Cardápio
@@ -82,7 +103,6 @@ router.post("/menu", (req, res) => {
   );
 });
 
-// Perfil do Restaurante
 router.get("/:id", (req, res) => {
   const { id } = req.params;
   const sql =
@@ -137,11 +157,11 @@ router.put("/:id", async (req, res) => {
   });
 });
 
+// Atualizar o endereço do restaurante
 router.put("/:id/address", (req, res) => {
   const { id } = req.params;
   const { rua, numero, cep, bairro, cidade } = req.body;
 
-  // Achar o ID do endereço do restaurante
   const sqlFind =
     "SELECT id_endereco FROM restaurante WHERE id_restaurante = $1";
 
@@ -152,8 +172,6 @@ router.put("/:id/address", (req, res) => {
     }
 
     const id_endereco = result.rows[0].id_endereco;
-
-    // Atualizar a tabela endereço
     const sqlUpdate =
       "UPDATE endereco SET rua=$1, numero=$2, cep=$3, bairro=$4, cidade=$5 WHERE id_endereco=$6";
 
