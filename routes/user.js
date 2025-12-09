@@ -334,7 +334,7 @@ router.delete("/cards/:cardId", (req, res) => {
 router.get("/:userId/active-order", (req, res) => {
   const { userId } = req.params;
   const sql = `
-    SELECT p.id_pedido, p.statusPedido, r.nome as nome_restaurante
+    SELECT p.id_pedido, p.statusPedido AS "statusPedido", r.nome AS nome_restaurante
     FROM pedido p
     JOIN restaurante r ON p.id_restaurante = r.id_restaurante
     WHERE p.id_usuario = $1 
@@ -374,7 +374,7 @@ router.get("/:userId/orders", (req, res) => {
   const { userId } = req.params;
 
   const sql = `
-    SELECT p.id_pedido, p.data_pedido, p.valor_total, p.statusPedido, r.nome as nome_restaurante
+    SELECT p.id_pedido, p.data_pedido, p.valor_total, p.statusPedido AS "statusPedido", r.nome as nome_restaurante
     FROM pedido p
     JOIN restaurante r ON p.id_restaurante = r.id_restaurante
     WHERE p.id_usuario = $1
