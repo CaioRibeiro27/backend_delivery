@@ -16,7 +16,7 @@ router.get("/all", (req, res) => {
   });
 });
 
-// Buscar pedidos
+// Buscar pedido do restaurante
 router.get("/:restaurantId/orders", async (req, res) => {
   const { restaurantId } = req.params;
   const sqlOrders = `
@@ -103,6 +103,7 @@ router.post("/menu", (req, res) => {
   );
 });
 
+// Perfil do Restaurante
 router.get("/:id", (req, res) => {
   const { id } = req.params;
   const sql =
