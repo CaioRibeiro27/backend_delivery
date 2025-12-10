@@ -25,6 +25,7 @@ router.get("/:restaurantId/orders", async (req, res) => {
       p.valor_total, 
       p.statusPedido AS "statusPedido", 
       p.data_pedido,
+      p.forma_pagamento, 
       u.nome as nome_cliente,
       e.rua, e.numero, e.bairro, ue.localizacao
     FROM pedido p
@@ -51,7 +52,6 @@ router.get("/:restaurantId/orders", async (req, res) => {
         WHERE pi.id_pedido = $1
       `;
         const itemsResult = await db.query(sqlItems, [order.id_pedido]);
-
         return { ...order, items: itemsResult.rows };
       })
     );
@@ -64,7 +64,6 @@ router.get("/:restaurantId/orders", async (req, res) => {
       .json({ success: false, message: "Erro ao buscar pedidos." });
   }
 });
-
 // Cardápio
 router.get("/menu/:restaurantId", (req, res) => {
   const { restaurantId } = req.params;
