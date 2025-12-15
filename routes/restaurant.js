@@ -211,4 +211,30 @@ router.get("/:id/address", (req, res) => {
   });
 });
 
+//Deletar item
+router.delete("/menu/:idItem", async (req, res) => {
+  const { idItem } = req.params;
+
+  try {
+    const check = await db.query(
+      "SELECT * FROM cardapio WHERE id_cardapio = $1",
+      [idItem]
+    );
+    if (check.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Item não encontrado." });
+    }
+
+    await db.query("DELETE FROM cardapio WHERE id_cardapio = $1", [idItem]);
+
+    res
+      .status(200)
+      .json({ success: true, message: "Item removido com sucesso!" });
+  } catch (error) {
+    console.error("Erro ao deletar item:", error);
+    res.status(500).json({ success: false, message: "Erro ao deletar item." });
+  }
+});
+
 module.exports = router;
