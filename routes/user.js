@@ -110,11 +110,11 @@ router.delete("/users/:userId", async (req, res) => {
       [userId]
     );
 
-    await db.query("DELETE FROM pedidos WHERE id_usuario = $1", [userId]);
+    await db.query("DELETE FROM pedido WHERE id_usuario = $1", [userId]);
 
     await db.query("DELETE FROM endereco WHERE id_usuario = $1", [userId]);
 
-    await db.query("DELETE FROM cartoes WHERE id_usuario = $1", [userId]);
+    await db.query("DELETE FROM cartao WHERE id_usuario = $1", [userId]);
     const result = await db.query("DELETE FROM usuario WHERE id_usuario = $1", [
       userId,
     ]);
