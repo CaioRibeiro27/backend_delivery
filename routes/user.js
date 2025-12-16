@@ -98,19 +98,44 @@ router.put("/users/:userId", async (req, res) => {
   });
 });
 
-router.delete("/users/:userId", (req, res) => {
+router.delete("/users/:userId", async (req, res) => {
   const { userId } = req.params;
-  const sql = "DELETE FROM usuario WHERE id_usuario = $1";
 
-  db.query(sql, [userId], (err, result) => {
-    if (err)
+  try {
+    await db.query(
+      `
+      DELETE FROM pedido_itens 
+      WHERE id_pedido IN (SELECT id_pedido FROM pedidos WHERE id_usuario = $1)
+    `,
+      [userId]
+    );
+
+    await db.query("DELETE FROM pedidos WHERE id_usuario = $1", [userId]);
+
+    await db.query("DELETE FROM endereco WHERE id_usuario = $1", [userId]);
+
+    await db.query("DELETE FROM cartoes WHERE id_usuario = $1", [userId]);
+    const result = await db.query("DELETE FROM usuario WHERE id_usuario = $1", [
+      userId,
+    ]);
+
+    if (result.rowCount === 0) {
       return res
-        .status(500)
-        .json({ success: false, message: "Erro ao excluir conta." });
+        .status(404)
+        .json({ success: false, message: "Usuário não encontrado." });
+    }
+
     res
       .status(200)
       .json({ success: true, message: "Conta excluída com sucesso." });
-  });
+  } catch (err) {
+    console.error("Erro ao excluir conta:", err);
+    res.status(500).json({
+      success: false,
+      message:
+        "Erro ao excluir conta. Verifique se há dependências não tratadas.",
+    });
+  }
 });
 
 // Endereços
@@ -201,37 +226,45 @@ router.put("/addresses/:addressId", (req, res) => {
 });
 
 // Deletar endereço
-router.delete("/addresses/:addressId", (req, res) => {
+router.delete("/addresses/:addressId", async (req, res) => {
   const { addressId } = req.params;
 
-  // Deletar Vínculo
-  const sqlLink = "DELETE FROM usuario_endereco WHERE id_endereco = $1";
+  try {
+    await db.query(
+      `
+      DELETE FROM pedido_itens 
+      WHERE id_pedido IN (SELECT id_pedido FROM pedidos WHERE id_endereco = $1)
+    `,
+      [addressId]
+    );
 
-  db.query(sqlLink, [addressId], (err, result) => {
-    if (err) {
-      console.error("Erro ao desvincular endereço:", err);
+    await db.query("DELETE FROM pedidos WHERE id_endereco = $1", [addressId]);
+
+    await db.query("DELETE FROM usuario_endereco WHERE id_endereco = $1", [
+      addressId,
+    ]);
+
+    const result = await db.query(
+      "DELETE FROM endereco WHERE id_endereco = $1",
+      [addressId]
+    );
+
+    if (result.rowCount === 0) {
       return res
-        .status(500)
-        .json({ success: false, message: "Erro ao desvincular endereço." });
+        .status(404)
+        .json({ success: false, message: "Endereço não encontrado." });
     }
 
-    // Deletar Endereço Físico
-    const sqlAddress = "DELETE FROM endereco WHERE id_endereco = $1";
-
-    db.query(sqlAddress, [addressId], (errAddress, resultAddress) => {
-      if (errAddress) {
-        console.error("Erro ao deletar endereço físico:", errAddress);
-        return res.status(200).json({
-          success: true,
-          message: "Endereço desvinculado com sucesso.",
-        });
-      }
-
-      res
-        .status(200)
-        .json({ success: true, message: "Endereço removido completamente!" });
+    res
+      .status(200)
+      .json({ success: true, message: "Endereço removido completamente!" });
+  } catch (err) {
+    console.error("Erro ao deletar endereço:", err);
+    res.status(500).json({
+      success: false,
+      message: "Erro ao deletar endereço. Verifique se há outros vínculos.",
     });
-  });
+  }
 });
 
 // Cartões
