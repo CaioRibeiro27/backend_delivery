@@ -106,16 +106,16 @@ router.delete("/users/:id", async (req, res) => {
     await db.query(
       `
       DELETE FROM pedido_itens 
-      WHERE pedido_id IN (SELECT id FROM pedido WHERE usuario_id = $1)
+      WHERE pedido_id IN (SELECT id FROM pedido WHERE id_usuario  = $1)
     `,
       [id]
     );
 
-    await db.query("DELETE FROM pedido WHERE usuario_id = $1", [id]);
+    await db.query("DELETE FROM pedido WHERE id_usuario = $1", [id]);
 
-    await db.query("DELETE FROM usuario_endereco WHERE usuario_id = $1", [id]);
+    await db.query("DELETE FROM usuario_endereco WHERE id_usuario = $1", [id]);
 
-    await db.query("DELETE FROM cartao WHERE usuario_id = $1", [id]);
+    await db.query("DELETE FROM cartao WHERE id_usuario = $1", [id]);
 
     await db.query("DELETE FROM usuario WHERE id = $1", [id]);
 
