@@ -98,7 +98,7 @@ router.put("/users/:userId", async (req, res) => {
   });
 });
 
-// Rota de Deletar Usuário
+// Deletar Usuário
 router.delete("/users/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -106,23 +106,25 @@ router.delete("/users/:id", async (req, res) => {
     await db.query(
       `
       DELETE FROM pedido_itens 
-      WHERE pedido_id IN (SELECT id FROM pedido WHERE id_usuario  = $1)
+      WHERE id_pedido IN (SELECT id_pedido FROM pedido WHERE id_usuario = $1)
     `,
       [id]
     );
 
     await db.query("DELETE FROM pedido WHERE id_usuario = $1", [id]);
-
     await db.query("DELETE FROM usuario_endereco WHERE id_usuario = $1", [id]);
 
-    await db.query("DELETE FROM cartao WHERE id_usuario = $1", [id]);
-
+    try {
+      await db.query("DELETE FROM cartao WHERE id_usuario = $1", [id]);
+    } catch (e) {
+      console.log("Info: Tabela cartao pulada ou vazia.");
+    }
     await db.query("DELETE FROM usuario WHERE id = $1", [id]);
 
     res.status(200).json({ message: "Conta excluída com sucesso!" });
   } catch (error) {
-    console.error("Erro ao excluir conta:", error);
-    res.status(500).json({ error: "Erro ao excluir conta. Verifique logs." });
+    console.error("ERRO AO DELETAR:", error);
+    res.status(500).json({ error: "Erro ao excluir conta." });
   }
 });
 
