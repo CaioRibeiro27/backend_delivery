@@ -98,43 +98,31 @@ router.put("/users/:userId", async (req, res) => {
   });
 });
 
-router.delete("/users/:userId", async (req, res) => {
-  const { userId } = req.params;
+// Rota de Deletar Usuário
+router.delete("/users/:id", async (req, res) => {
+  const { id } = req.params;
 
   try {
     await db.query(
       `
       DELETE FROM pedido_itens 
-      WHERE id_pedido IN (SELECT id_pedido FROM pedido WHERE id_usuario = $1)
+      WHERE pedido_id IN (SELECT id FROM pedido WHERE usuario_id = $1)
     `,
-      [userId]
+      [id]
     );
 
-    await db.query("DELETE FROM pedido WHERE id_usuario = $1", [userId]);
+    await db.query("DELETE FROM pedido WHERE usuario_id = $1", [id]);
 
-    await db.query("DELETE FROM endereco WHERE id_usuario = $1", [userId]);
+    await db.query("DELETE FROM usuario_endereco WHERE usuario_id = $1", [id]);
 
-    await db.query("DELETE FROM cartao WHERE id_usuario = $1", [userId]);
-    const result = await db.query("DELETE FROM usuario WHERE id_usuario = $1", [
-      userId,
-    ]);
+    await db.query("DELETE FROM cartao WHERE usuario_id = $1", [id]);
 
-    if (result.rowCount === 0) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Usuário não encontrado." });
-    }
+    await db.query("DELETE FROM usuario WHERE id = $1", [id]);
 
-    res
-      .status(200)
-      .json({ success: true, message: "Conta excluída com sucesso." });
-  } catch (err) {
-    console.error("Erro ao excluir conta:", err);
-    res.status(500).json({
-      success: false,
-      message:
-        "Erro ao excluir conta. Verifique se há dependências não tratadas.",
-    });
+    res.status(200).json({ message: "Conta excluída com sucesso!" });
+  } catch (error) {
+    console.error("Erro ao excluir conta:", error);
+    res.status(500).json({ error: "Erro ao excluir conta. Verifique logs." });
   }
 });
 
