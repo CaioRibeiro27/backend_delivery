@@ -119,7 +119,7 @@ router.delete("/users/:id", async (req, res) => {
     } catch (e) {
       console.log("Info: Tabela cartao pulada ou vazia.");
     }
-    await db.query("DELETE FROM usuario WHERE id = $1", [id]);
+    await db.query("DELETE FROM usuario WHERE id_usuario = $1", [id]);
 
     res.status(200).json({ message: "Conta excluída com sucesso!" });
   } catch (error) {
